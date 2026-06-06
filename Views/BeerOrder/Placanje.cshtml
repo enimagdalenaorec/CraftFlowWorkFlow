@@ -1,0 +1,19 @@
+﻿@{
+    ViewData["Title"] = "Plaćanje narudžbe";
+}
+
+<h2>Simulacija unosa kartice za uplatu</h2>
+<p>Plaćanje za narudžbu broj: <b class="text-primary">@ViewBag.BusinessKey</b></p>
+<p class="text-warning">⚠️ Imate 1 minutu za uplatu od trenutka odobrenja narudžbe prije nego Camunda Timer prekine proces!</p>
+
+<form asp-action="IzvrsiPlacanje" method="post">
+    <input type="hidden" name="businessKey" value="@ViewBag.BusinessKey" />
+
+    <div class="form-group mb-3 w-50">
+        <label>Broj kreditne kartice (Simulacija):</label>
+        <input type="text" name="brojKartice" class="form-control" placeholder="1234-5678-9012-3456" required />
+    </div>
+
+    <button type="submit" class="btn btn-success">Izvrši uplatu (Pošalji Message Event)</button>
+    <a asp-action="Dashboard" class="btn btn-secondary">Odustani</a>
+</form>

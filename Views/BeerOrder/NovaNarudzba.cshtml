@@ -1,0 +1,46 @@
+﻿@model CraftFlowWorkFlow.Models.BeerOrderViewModel
+
+@{
+    ViewData["Title"] = "Nova Narudžba Piva";
+}
+
+<h2>Kreirajte novu narudžbu piva</h2>
+
+<div asp-validation-summary="All" class="text-danger"></div>
+
+<form asp-action="NovaNarudzba" method="post">
+    <div class="form-group mb-3">
+        <label><b>Vaše ime (Ime kupca):</b></label>
+        <input asp-for="ImeKupca" class="form-control" placeholder="Unesite ime..." />
+    </div>
+
+    <h4>Odaberite piva (Maksimalno 10 gajbi po vrsti za prolaz zaliha):</h4>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Vrsta piva</th>
+                <th>Količina (gajbe)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < 3; i++)
+            {
+                <tr>
+                    <td>
+                        <select name="Stavke[@i].VrstaPiva" class="form-control">
+                            <option value="">-- Odaberite pivo --</option>
+                            <option value="Lager">Ožujsko (Lager)</option>
+                            <option value="IPA">Zmajsko (IPA)</option>
+                            <option value="Tamno">Tomislav (Tamno)</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" name="Stavke[@i].Kolicina" class="form-control" value="0" min="0" />
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="submit" class="btn btn-primary">Pošalji narudžbu u Camundu</button>
+</form>

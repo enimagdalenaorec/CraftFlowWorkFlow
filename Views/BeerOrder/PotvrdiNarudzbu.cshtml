@@ -1,0 +1,46 @@
+﻿@model CraftFlowWorkFlow.Models.PotvrdaNarudzbeViewModel
+
+@{
+    ViewData["Title"] = "Potvrda Narudžbe";
+}
+
+<h2>Odobrenje narudžbe - Služba Pivovare</h2>
+<p>Kupac: <b>@Model.ImeKupca</b></p>
+
+<h4>Stavke narudžbe izvučene iz Camunda varijabli:</h4>
+<table class="table table-bordered w-50">
+    <thead>
+        <tr>
+            <th>Vrsta piva</th>
+            <th>Količina (gajbe)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var stavka in Model.Stavke)
+        {
+            <tr>
+                <td>@stavka.VrstaPiva</td>
+                <td>@stavka.Kolicina</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<form asp-action="PotvrdiNarudzbu" method="post">
+    <input type="hidden" asp-for="TaskId" />
+
+    <div class="form-group mb-3">
+        <label class="form-label d-block"><b>Donesi odluku o narudžbi:</b></label>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" asp-for="Approved" value="true" id="appTrue" checked>
+            <label class="form-check-label text-success font-weight-bold" for="appTrue">ODOBRI NARUDŽBU</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" asp-for="Approved" value="false" id="appFalse">
+            <label class="form-check-label text-danger font-weight-bold" for="appFalse">ODBIJ NARUDŽBU</label>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Spremi i javi Camundi</button>
+    <a asp-action="Dashboard" class="btn btn-secondary">Natrag</a>
+</form>

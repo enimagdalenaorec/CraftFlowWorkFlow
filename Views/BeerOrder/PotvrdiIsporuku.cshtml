@@ -1,0 +1,26 @@
+﻿@model CraftFlowWorkFlow.Models.IsporukaViewModel
+
+@{
+    ViewData["Title"] = "Otprema piva";
+}
+
+<h2>Skladište - Otprema i utovar piva</h2>
+<p>Kupac: <b>@Model.ImeKupca</b></p>
+<p class="text-success">✅ Narudžba je uredno plaćena na vrijeme!</p>
+
+<form asp-action="PotvrdiIsporuku" method="post">
+    <input type="hidden" asp-for="TaskId" />
+
+    <div class="form-group mb-3 w-50">
+        <label>Ime vozača dostave / dostavne službe:</label>
+        <input asp-for="ImeDostavljaca" class="form-control" placeholder="Npr. Ivan Vozač ili HP Express" required />
+    </div>
+
+    <div class="form-group mb-3 w-50">
+        <label>Broj otpremnice:</label>
+        <input asp-for="BrojOtpremnice" class="form-control" placeholder="Npr. OTP-2024-001" required />
+    </div>
+
+    <button type="submit" class="btn btn-danger">Potvrdi utovar i zatvori proces</button>
+    <a asp-action="Dashboard" class="btn btn-secondary">Natrag</a>
+</form>
