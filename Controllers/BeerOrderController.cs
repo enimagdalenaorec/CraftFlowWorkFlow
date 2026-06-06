@@ -50,6 +50,9 @@ namespace CraftFlowWorkFlow.Controllers
                 return View(model);
             }
 
+            // ===================================================================
+            // OD OVDJE NA DOLJE ZAMIJENI S OVIM NOVIM KODOM (UVEĆANI TRY-CATCH)
+            // ===================================================================
             try
             {
                 string stavkeJson = JsonSerializer.Serialize(model.Stavke);
@@ -62,7 +65,7 @@ namespace CraftFlowWorkFlow.Controllers
 
                 string uniqueBusinessKey = "NAR-" + Guid.NewGuid().ToString().Substring(0, 8);
 
-                // POPRAVLJENO prema linijama 66 i 67 s tvoje slike grešaka
+                // Pokrećemo proces u Camundi
                 var result = await _camundaService.Client.ProcessDefinitions.ByKey(ProcessKey)
                     .StartProcessInstance(new StartProcessInstance
                     {
@@ -70,7 +73,29 @@ namespace CraftFlowWorkFlow.Controllers
                         BusinessKey = uniqueBusinessKey
                     });
 
-                TempData["SuccessMessage"] = $"Narudžba {uniqueBusinessKey} je poslana! Sustav provjerava zalihe.";
+                // --- NOVA LOGIKA ZA PROVJERU DA LI JE AUTOMATSKI ODBIJENO ---
+
+                // 1. Kratko pričekamo da pozadinski BeerStockWorker odradi svoj posao u pozadini
+                await Task.Delay(1500);
+
+                // 2. Pitamo Camundu je li ta pokrenuta instanca još uvijek među AKTIVNIM procesima
+                var aktivneInstance = await _camundaService.Client.ProcessInstances
+                    .Query(new Camunda.Api.Client.ProcessInstance.ProcessInstanceQuery
+                    {
+                        ProcessInstanceIds = new List<string> { result.Id }
+                    }).List();
+
+                // 3. Ako je lista prazna, znači da je proces proletio kroz "notify-customer" i završio!
+                if (aktivneInstance.Count == 0)
+                {
+                    TempData["ErrorMessage"] = $"Narudžba {uniqueBusinessKey} je AUTOMATSKI ODBIJENA jer nemamo dovoljno gajbi na zalihi!";
+                }
+                else
+                {
+                    // Ako je još aktivna, sve je u redu, prošla je zalihe i otišla radniku
+                    TempData["SuccessMessage"] = $"Narudžba {uniqueBusinessKey} je uspješno zaprimljena! Skladište ima zalihe, čeka se odobrenje radnika.";
+                }
+
                 return RedirectToAction("Dashboard");
             }
             catch (Exception ex)
@@ -78,6 +103,9 @@ namespace CraftFlowWorkFlow.Controllers
                 ModelState.AddModelError("", $"Greška pri komunikaciji s Camundom: {ex.Message}");
                 return View(model);
             }
+            // ===================================================================
+            // KRAJ ZAMJENE
+            // ===================================================================
         }
 
         // ==========================================

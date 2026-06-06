@@ -26,68 +26,84 @@ namespace CraftFlowWorkFlow.Services
             {
                 try
                 {
-                    // POPRAVLJENO: Točan naziv klase je FetchExternalTasks, a ne FetchAndLockTasks
                     var externalTasks = await _camundaService.Client.ExternalTasks
                         .FetchAndLock(new FetchExternalTasks
                         {
                             WorkerId = "beer-worker-1",
-                            MaxTasks = 1,
-                            // POPRAVLJENO: Točan naziv klase je FetchExternalTaskTopic
+                            MaxTasks = 5, // Povećano na 5 da može pokupiti više različitih zadataka odjednom
                             Topics = new List<FetchExternalTaskTopic>
                             {
+                                // 1. Tvoj postojeći topic za zalihe
                                 new FetchExternalTaskTopic("check-beer-stock", 10_000)
                                 {
                                     Variables = new List<string> { "stavkeJson" }
-                                }
+                                },
+                                
+                                // 2. NOVI TOPIC: Sada radnik sluša i tvoj drugi Service Task!
+                                new FetchExternalTaskTopic("notify-customer", 10_000)
                             }
                         });
 
                     foreach (var task in externalTasks)
                     {
-                        bool isAvailable = true;
-
-                        if (task.Variables.ContainsKey("stavkeJson"))
+                        // --- AKO JE STIGAO ZADATAK ZA PROVJERU ZALIHA ---
+                        if (task.TopicName == "check-beer-stock")
                         {
-                            string json = task.Variables["stavkeJson"].Value.ToString();
+                            bool isAvailable = true;
 
-                            // POPRAVLJENO: Dodan gornji using System.Text.Json i CraftFlowWorkFlow.Models
-                            var stavke = JsonSerializer.Deserialize<List<NarudzbaStavka>>(json);
-
-                            if (stavke != null)
+                            if (task.Variables.ContainsKey("stavkeJson"))
                             {
-                                foreach (var stavka in stavke)
+                                string json = task.Variables["stavkeJson"].Value.ToString();
+                                var stavke = JsonSerializer.Deserialize<List<NarudzbaStavka>>(json);
+
+                                if (stavke != null)
                                 {
-                                    // Simulacija provjere zaliha: Ako netko naruči više od 10 gajbi, odbijamo
-                                    if (stavka.Kolicina > 10)
+                                    foreach (var stavka in stavke)
                                     {
-                                        isAvailable = false;
-                                        break;
+                                        if (stavka.Kolicina > 10)
+                                        {
+                                            isAvailable = false;
+                                            break;
+                                        }
                                     }
                                 }
                             }
+
+                            var resultVariables = new Dictionary<string, VariableValue>
+                            {
+                                { "available", VariableValue.FromObject(isAvailable) }
+                            };
+
+                            await _camundaService.Client.ExternalTasks[task.Id].Complete(new CompleteExternalTask
+                            {
+                                WorkerId = "beer-worker-1",
+                                Variables = resultVariables
+                            });
+
+                            Console.WriteLine("[Worker]: Provjera zaliha završena.");
                         }
 
-                        // Pripremamo rezultat za Camundu
-                        var resultVariables = new Dictionary<string, VariableValue>
+                        // --- AKO JE STIGAO ZADATAK ZA OBAVIJEST O ODBIJANJU ---
+                        else if (task.TopicName == "notify-customer")
                         {
-                            { "available", VariableValue.FromObject(isAvailable) }
-                        };
+                            // Sustav ovdje odrađuje automatiku (npr. slanje maila, logiranje)
+                            Console.WriteLine($"[AUTOMATIKA - Worker]: Kupac je uspješno obaviješten u pozadini da nema dovoljno zaliha.");
 
-                        // POPRAVLJENO: Točan naziv klase je CompleteExternalTask
-                        await _camundaService.Client.ExternalTasks[task.Id].Complete(new CompleteExternalTask
-                        {
-                            WorkerId = "beer-worker-1",
-                            Variables = resultVariables
-                        });
+                            // Odmah automatski javljamo Camundi da je zadatak gotov, bez ikakvog klika na sučelju!
+                            await _camundaService.Client.ExternalTasks[task.Id].Complete(new CompleteExternalTask
+                            {
+                                WorkerId = "beer-worker-1"
+                            });
+
+                            Console.WriteLine("[Worker]: Obavijest poslana, proces gurnut do kraja.");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    // U slučaju greške pri spajanju na Camundu (npr. ako Docker još nije pokrenut), samo ispiši u konzolu
                     Console.WriteLine($"[Worker Greška]: {ex.Message}");
                 }
 
-                // Radnik provjerava Camundu svake 3 sekunde
                 await Task.Delay(3000, stoppingToken);
             }
         }
