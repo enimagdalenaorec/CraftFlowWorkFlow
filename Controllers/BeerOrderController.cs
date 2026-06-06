@@ -22,9 +22,6 @@ namespace CraftFlowWorkFlow.Controllers
             _camundaService = camundaService;
         }
 
-        // ==========================================
-        // 1. FORMA: NOVA NARUDŽBA (Kupac)
-        // ==========================================
         [HttpGet]
         public IActionResult NovaNarudzba()
         {
@@ -50,52 +47,34 @@ namespace CraftFlowWorkFlow.Controllers
                 return View(model);
             }
 
-            // ===================================================================
-            // OD OVDJE NA DOLJE ZAMIJENI S OVIM NOVIM KODOM (UVEĆANI TRY-CATCH)
-            // ===================================================================
+            foreach (var stavka in model.Stavke)
+            {
+                if (stavka.Kolicina > 10)
+                {
+                    TempData["ErrorMessage"] = $"Narudžba odbijena: Nema dovoljno zaliha za {stavka.VrstaPiva} (traženo: {stavka.Kolicina}, max 10).";
+                    return RedirectToAction("Dashboard");
+                }
+            }
+
             try
             {
                 string stavkeJson = JsonSerializer.Serialize(model.Stavke);
-
                 var variables = new Dictionary<string, VariableValue>
-                {
-                    { "imeKupca", VariableValue.FromObject(model.ImeKupca) },
-                    { "stavkeJson", VariableValue.FromObject(stavkeJson) }
-                };
+        {
+            { "imeKupca", VariableValue.FromObject(model.ImeKupca) },
+            { "stavkeJson", VariableValue.FromObject(stavkeJson) }
+        };
 
                 string uniqueBusinessKey = "NAR-" + Guid.NewGuid().ToString().Substring(0, 8);
 
-                // Pokrećemo proces u Camundi
-                var result = await _camundaService.Client.ProcessDefinitions.ByKey(ProcessKey)
+                await _camundaService.Client.ProcessDefinitions.ByKey(ProcessKey)
                     .StartProcessInstance(new StartProcessInstance
                     {
                         Variables = variables,
                         BusinessKey = uniqueBusinessKey
                     });
 
-                // --- NOVA LOGIKA ZA PROVJERU DA LI JE AUTOMATSKI ODBIJENO ---
-
-                // 1. Kratko pričekamo da pozadinski BeerStockWorker odradi svoj posao u pozadini
-                await Task.Delay(1500);
-
-                // 2. Pitamo Camundu je li ta pokrenuta instanca još uvijek među AKTIVNIM procesima
-                var aktivneInstance = await _camundaService.Client.ProcessInstances
-                    .Query(new Camunda.Api.Client.ProcessInstance.ProcessInstanceQuery
-                    {
-                        ProcessInstanceIds = new List<string> { result.Id }
-                    }).List();
-
-                // 3. Ako je lista prazna, znači da je proces proletio kroz "notify-customer" i završio!
-                if (aktivneInstance.Count == 0)
-                {
-                    TempData["ErrorMessage"] = $"Narudžba {uniqueBusinessKey} je AUTOMATSKI ODBIJENA jer nemamo dovoljno gajbi na zalihi!";
-                }
-                else
-                {
-                    // Ako je još aktivna, sve je u redu, prošla je zalihe i otišla radniku
-                    TempData["SuccessMessage"] = $"Narudžba {uniqueBusinessKey} je uspješno zaprimljena! Skladište ima zalihe, čeka se odobrenje radnika.";
-                }
-
+                TempData["SuccessMessage"] = $"Narudžba {uniqueBusinessKey} je zaprimljena i čeka odobrenje.";
                 return RedirectToAction("Dashboard");
             }
             catch (Exception ex)
@@ -103,35 +82,36 @@ namespace CraftFlowWorkFlow.Controllers
                 ModelState.AddModelError("", $"Greška pri komunikaciji s Camundom: {ex.Message}");
                 return View(model);
             }
-            // ===================================================================
-            // KRAJ ZAMJENE
-            // ===================================================================
         }
 
-        // ==========================================
-        // DASHBOARD: CENTRALNI PREGLED ZADATAKA
-        // ==========================================
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
             try
             {
-                // PROMIJENJENO: Iz UserTaskQuery() u TaskQuery()
                 var tasks = await _camundaService.Client.UserTasks.Query(new TaskQuery()).List();
+
+                var taskBusinessKeys = new Dictionary<string, string>();
+
+                foreach (var task in tasks)
+                {
+                    var instance = await _camundaService.Client.ProcessInstances[task.ProcessInstanceId].Get();
+                    taskBusinessKeys[task.Id] = instance.BusinessKey ?? "N/A";
+                }
+
                 ViewBag.AktivniZadaci = tasks;
+                ViewBag.TaskBusinessKeys = taskBusinessKeys;
             }
             catch (Exception ex)
             {
-                ViewBag.Error = $"Nije moguće dohvatiti zadatke: {ex.Message}. Je li Docker pokrenut?";
+                ViewBag.Error = $"Nije moguće dohvatiti zadatke: {ex.Message}";
                 ViewBag.AktivniZadaci = new List<UserTaskInfo>();
             }
 
             return View();
         }
 
-        // ==========================================
-        // 2. FORMA: POTVRDA NARUDŽBE (Radnik)
-        // ==========================================
+   
         [HttpGet]
         public async Task<IActionResult> PotvrdiNarudzbu(string taskId)
         {
@@ -162,7 +142,6 @@ namespace CraftFlowWorkFlow.Controllers
                     { "approved", VariableValue.FromObject(model.Approved) }
                 };
 
-                // POPRAVLJENO prema liniji 145 s tvoje slike grešaka
                 await _camundaService.Client.UserTasks[model.TaskId].Complete(new CompleteTask
                 {
                     Variables = variables
@@ -180,9 +159,7 @@ namespace CraftFlowWorkFlow.Controllers
             }
         }
 
-        // ==========================================
-        // 3. FORMA: SIMULACIJA UPLATE (Kupac)
-        // ==========================================
+     
         [HttpGet]
         public IActionResult Placanje(string businessKey)
         {
@@ -217,9 +194,6 @@ namespace CraftFlowWorkFlow.Controllers
             }
         }
 
-        // ==========================================
-        // 4. FORMA: POTVRDI ISPORUKU (Skladištar)
-        // ==========================================
         [HttpGet]
         public async Task<IActionResult> PotvrdiIsporuku(string taskId)
         {
@@ -245,7 +219,6 @@ namespace CraftFlowWorkFlow.Controllers
                     { "brojOtpremnice", VariableValue.FromObject(model.BrojOtpremnice) }
                 };
 
-                // POPRAVLJENO prema liniji 227 s tvoje slike grešaka
                 await _camundaService.Client.UserTasks[model.TaskId].Complete(new CompleteTask
                 {
                     Variables = variables

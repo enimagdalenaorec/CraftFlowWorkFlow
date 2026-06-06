@@ -30,23 +30,20 @@ namespace CraftFlowWorkFlow.Services
                         .FetchAndLock(new FetchExternalTasks
                         {
                             WorkerId = "beer-worker-1",
-                            MaxTasks = 5, // Povećano na 5 da može pokupiti više različitih zadataka odjednom
+                            MaxTasks = 5, 
                             Topics = new List<FetchExternalTaskTopic>
                             {
-                                // 1. Tvoj postojeći topic za zalihe
                                 new FetchExternalTaskTopic("check-beer-stock", 10_000)
                                 {
                                     Variables = new List<string> { "stavkeJson" }
                                 },
                                 
-                                // 2. NOVI TOPIC: Sada radnik sluša i tvoj drugi Service Task!
                                 new FetchExternalTaskTopic("notify-customer", 10_000)
                             }
                         });
 
                     foreach (var task in externalTasks)
                     {
-                        // --- AKO JE STIGAO ZADATAK ZA PROVJERU ZALIHA ---
                         if (task.TopicName == "check-beer-stock")
                         {
                             bool isAvailable = true;
@@ -83,13 +80,10 @@ namespace CraftFlowWorkFlow.Services
                             Console.WriteLine("[Worker]: Provjera zaliha završena.");
                         }
 
-                        // --- AKO JE STIGAO ZADATAK ZA OBAVIJEST O ODBIJANJU ---
                         else if (task.TopicName == "notify-customer")
                         {
-                            // Sustav ovdje odrađuje automatiku (npr. slanje maila, logiranje)
                             Console.WriteLine($"[AUTOMATIKA - Worker]: Kupac je uspješno obaviješten u pozadini da nema dovoljno zaliha.");
 
-                            // Odmah automatski javljamo Camundi da je zadatak gotov, bez ikakvog klika na sučelju!
                             await _camundaService.Client.ExternalTasks[task.Id].Complete(new CompleteExternalTask
                             {
                                 WorkerId = "beer-worker-1"

@@ -1,11 +1,9 @@
 ﻿@model CraftFlowWorkFlow.Models.BeerOrderViewModel
-
 @{
     ViewData["Title"] = "Nova Narudžba Piva";
 }
 
 <h2>Kreirajte novu narudžbu piva</h2>
-
 <div asp-validation-summary="All" class="text-danger"></div>
 
 <form asp-action="NovaNarudzba" method="post">
@@ -15,19 +13,51 @@
     </div>
 
     <h4>Odaberite piva (Maksimalno 10 gajbi po vrsti za prolaz zaliha):</h4>
-    <table class="table">
+    <table class="table" id="stavkeTable">
         <thead>
             <tr>
                 <th>Vrsta piva</th>
                 <th>Količina (gajbe)</th>
+                <th style="width: 100px;">Akcija</th>
             </tr>
         </thead>
         <tbody>
-            @for (int i = 0; i < 3; i++)
-            {
-                <tr>
+            <tr class="stavka-red">
+                <td>
+                    <select name="Stavke[0].VrstaPiva" class="form-control" required>
+                        <option value="">-- Odaberite pivo --</option>
+                        <option value="Lager">Ožujsko (Lager)</option>
+                        <option value="IPA">Zmajsko (IPA)</option>
+                        <option value="Tamno">Tomislav (Tamno)</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" name="Stavke[0].Kolicina" class="form-control" value="1" min="1" required />
+                </td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm btn-obrisi" onclick="obrisiRed(this)">Obriši</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="mb-3">
+        <button type="button" class="btn btn-success btn-sm" id="btnDodajStavku">+ Dodaj vrstu piva</button>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Pošalji narudžbu u Camundu</button>
+</form>
+
+@section Scripts {
+    <script>
+        document.getElementById('btnDodajStavku').addEventListener('click', function () {
+            const tableBody = document.querySelector('#stavkeTable tbody');
+            const trenutniBrojRedova = tableBody.querySelectorAll('.stavka-red').length;
+
+            const noviRedHtml = `
+                <tr class="stavka-red">
                     <td>
-                        <select name="Stavke[@i].VrstaPiva" class="form-control">
+                        <select name="Stavke[${trenutniBrojRedova}].VrstaPiva" class="form-control" required>
                             <option value="">-- Odaberite pivo --</option>
                             <option value="Lager">Ožujsko (Lager)</option>
                             <option value="IPA">Zmajsko (IPA)</option>
@@ -35,12 +65,50 @@
                         </select>
                     </td>
                     <td>
-                        <input type="number" name="Stavke[@i].Kolicina" class="form-control" value="0" min="0" />
+                        <input type="number" name="Stavke[${trenutniBrojRedova}].Kolicina" class="form-control" value="1" min="1" required />
                     </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm btn-obrisi" onclick="obrisiRed(this)">Obriši</button>
+                    </td>
+                </tr>`;
 
-    <button type="submit" class="btn btn-primary">Pošalji narudžbu u Camundu</button>
-</form>
+            tableBody.insertAdjacentHTML('beforeend', noviRedHtml);
+            osvjeziGumbObrisiStatus();
+        });
+
+        function obrisiRed(gumb) {
+            const red = gumb.closest('.stavka-red');
+            red.remove();
+            
+            reindeksirajStavke();
+            osvjeziGumbObrisiStatus();
+        }
+
+        function reindeksirajStavke() {
+            const redovi = document.querySelectorAll('#stavkeTable tbody .stavka-red');
+            redovi.forEach((red, index) => {
+                const selectElement = red.querySelector('select');
+                const inputElement = red.querySelector('input[type="number"]');
+
+                if (selectElement) selectElement.setAttribute('name', `Stavke[${index}].VrstaPiva`);
+                if (inputElement) inputElement.setAttribute('name', `Stavke[${index}].Kolicina`);
+            });
+        }
+
+        function osvjeziGumbObrisiStatus() {
+            const redovi = document.querySelectorAll('#stavkeTable tbody .stavka-red');
+            redovi.forEach(red => {
+                const gumbObrisi = red.querySelector('.btn-obrisi');
+                if (redovi.length === 1) {
+                    gumbObrisi.setAttribute('disabled', 'disabled');
+                } else {
+                    gumbObrisi.removeAttribute('disabled');
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            osvjeziGumbObrisiStatus();
+        });
+    </script>
+}

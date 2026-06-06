@@ -3,7 +3,7 @@
     var zadaci = ViewBag.AktivniZadaci as List<Camunda.Api.Client.UserTask.UserTaskInfo>;
 }
 
-<h2>Upravljačka ploča procesa (Dashboard)</h2>
+<h2>Upravljačka ploča</h2>
 
 @if (TempData["SuccessMessage"] != null)
 {
@@ -23,54 +23,64 @@
 </div>
 
 <h4>Aktivni zadaci u Camundi (Čekaju na akciju):</h4>
-<table class="table table-bordered table-striped">
-    <thead class="table-dark">
-        <tr>
-            <th>ID zadatka</th>
-            <th>Naziv zadatka (Flow korak)</th>
-            <th>Kreirano</th>
-            <th>Akcija</th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (zadaci == null || zadaci.Count == 0)
-        {
+
+<div id="tasks-table-container">
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
             <tr>
-                <td colspan="4" class="text-center text-muted">Trenutno nema aktivnih User Taskova. (Ako ste tek poslali narudžbu, pričekajte 3 sekunde da Worker provjeri zalihe i osvježite stranicu).</td>
+                <th>ID Narudžbe</th>
+                <th>ID zadatka</th>
+                <th>Naziv zadatka (Flow korak)</th>
+                <th>Kreirano</th>
+                <th>Akcija</th>
             </tr>
-        }
-        else
-        {
-            foreach (var task in zadaci)
+        </thead>
+        <tbody>
+            @if (zadaci == null || zadaci.Count == 0)
             {
                 <tr>
-                    <td>@task.Id</td>
-                    <td>@task.Name</td>
-                    <td>@task.Created.ToLocalTime()</td>
-                    <td>
-                        @if (task.TaskDefinitionKey == "Task_Potvrda")
-                        {
-                            <a asp-action="PotvrdiNarudzbu" asp-route-taskId="@task.Id" class="btn btn-warning btn-sm">Otvori odobrenje</a>
-                        }
-                        else if (task.TaskDefinitionKey == "Task_Isporuka")
-                        {
-                            <a asp-action="PotvrdiIsporuku" asp-route-taskId="@task.Id" class="btn btn-info btn-sm">Potvrdi isporuku</a>
-                        }
-                        else
-                        {
-                            <span class="badge bg-secondary">Zadatak izvan očekivanog GUI-a</span>
-                        }
+                    <td colspan="4" class="text-center text-muted">
+                        Trenutno nema aktivnih User Taskova. Status se automatski provjerava u pozadini...
                     </td>
                 </tr>
             }
-        }
-    </tbody>
-</table>
+            else
+            {
+                foreach (var task in zadaci)
+                {
+                    <tr>
+                        <td>
+                            <code style="background-color: #f8f9fa; padding: 2px 4px; border-radius: 4px;">
+                                @ViewBag.TaskBusinessKeys[task.Id]
+                            </code>
+                        </td>
+                        <td>@task.Id</td>
+                        <td>@task.Name</td>
+                        <td>@task.Created.ToLocalTime()</td>
+                        <td>
+                            @if (task.TaskDefinitionKey == "Task_Potvrda")
+                            {
+                                <a asp-action="PotvrdiNarudzbu" asp-route-taskId="@task.Id" class="btn btn-warning btn-sm">Otvori odobrenje</a>
+                            }
+                            else if (task.TaskDefinitionKey == "Task_Isporuka")
+                            {
+                                <a asp-action="PotvrdiIsporuku" asp-route-taskId="@task.Id" class="btn btn-info btn-sm">Potvrdi isporuku</a>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Zadatak izvan očekivanog GUI-a</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
 
 <hr />
 <div class="card p-3 bg-light">
-    <h5>Simulacija uplate (Krug s pismom)</h5>
-    <p>Budući da se uplata čeka putem <i>Message Eventa</i>, nakon što odobrite narudžbu, ovdje unesite njezin broj kako biste simulirali bankovnu transakciju:</p>
+    <h5>Simulacija uplate</h5>
     <form asp-action="Placanje" method="get" class="row g-3">
         <div class="col-auto">
             <input type="text" name="businessKey" class="form-control" placeholder="Npr. NAR-A1B2C3D4" required />
@@ -80,3 +90,20 @@
         </div>
     </form>
 </div>
+
+@section Scripts {
+    <script>
+        setInterval(function () {
+            fetch('@Url.Action("Dashboard", "BeerOrder")')
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newTableContent = doc.getElementById('tasks-table-container').innerHTML;
+
+                    document.getElementById('tasks-table-container').innerHTML = newTableContent;
+                })
+                .catch(err => console.error("Greška pri automatskom osvježavanju:", err));
+        }, 3000);
+    </script>
+}
