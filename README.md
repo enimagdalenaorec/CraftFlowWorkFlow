@@ -52,6 +52,6 @@ Ako je deploy uspješan, BPMN proces je registriran u Camunda engineu.
 
 ## 3. Pokretanje .NET projekta 
 
-1. Povući i otvoriti .NET projekt u Visual Studiju.
+1. Povući i otvoriti .NET projekt u Visual Studiu.
 2. Pokrenuti .NET aplikaciju.
 
