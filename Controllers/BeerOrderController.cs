@@ -147,7 +147,7 @@ namespace CraftFlowWorkFlow.Controllers
                     Variables = variables
                 });
 
-                TempData["SuccessMessage"] = model.Approved
+                TempData[model.Approved ? "SuccessMessage" : "ErrorMessage"] = model.Approved
                     ? "Narudžba odobrena! Korisnik sada ima 1 minutu za uplatu."
                     : "Narudžba je odbijena.";
                 return RedirectToAction("Dashboard");
